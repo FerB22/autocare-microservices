@@ -1,0 +1,82 @@
+Estructura del Proyecto: AutoCare
+1. Gestión de Vehículos (Fleet Service)
+Es el dueño de la información técnica del auto.
+
+Atributos: id_vehiculo (UUID), patente, marca, modelo, año, vin_chasis, id_dueño (FK lógica).
+
+API: Expone GET /vehiculos/{patente} para que otros servicios sepan qué auto están atendiendo.
+
+2. Clientes (Customer Service)
+Gestiona los datos de contacto.
+
+Atributos: id_cliente, nombre, telefono, email, direccion, es_empresa (Boolean).
+
+API: Permite a otros servicios obtener los datos de contacto para enviar avisos.
+
+3. Agenda y Citas (Booking Service)
+Controla el calendario de ingresos.
+
+Atributos: id_cita, id_vehiculo, fecha_hora, motivo_breve, estado (Confirmada, Cancelada, Ejecutada).
+
+Conexión API: Llama al Servicio 1 para validar que el auto existe antes de agendar.
+
+4. Recepción e Inspección (Check-in Service)
+El registro de cómo llega el auto físicamente.
+
+Atributos: id_recepcion, id_vehiculo, kilometraje_entrada, nivel_combustible, daños_visuales (JSON o Lista), objetos_dejados.
+
+Conexión API: Cuando se crea la recepción, notifica al Servicio 5 para iniciar el trabajo.
+
+5. Órdenes de Trabajo (Workflow Service)
+El corazón del proceso. Mueve el auto por el taller.
+
+Atributos: id_orden, id_vehiculo, id_mecanico_asignado, estado (En Espera, En Proceso, Control de Calidad, Listo), prioridad.
+
+Conexión API: El Servicio de Staff le dice qué mecánicos están libres para asignar.
+
+6. Diagnóstico y Presupuesto (Estimation Service)
+Calcula cuánto va a costar la broma.
+
+Atributos: id_presupuesto, id_orden, lista_fallas, horas_hombre_estimadas, total_estimado.
+
+Conexión API: Llama al Servicio 7 (Repuestos) para cotizar las piezas necesarias.
+
+7. Inventario de Repuestos (Spare Parts Service)
+Control de bodega.
+
+Atributos: id_repuesto, nombre, codigo_parte, stock, precio_unitario, ubicacion_bodega.
+
+API: Expone POST /reservar para que un presupuesto "aparte" las piezas y no se las vendan a otro.
+
+8. Gestión de Staff (HR Service)
+Maneja a los técnicos.
+
+Atributos: id_mecanico, nombre, especialidad (Frenos, Motor, Eléctrico), esta_disponible (Boolean).
+
+API: Los demás servicios le consultan para saber quién puede trabajar en qué auto.
+
+9. Facturación y Caja (Billing Service)
+El cierre comercial.
+
+Atributos: id_factura, id_orden, monto_neto, iva, total_final, metodo_pago, pagado (Boolean).
+
+Conexión API: Al pagarse la factura, este servicio llama al Servicio 5 para marcar la orden como "Entregada".
+
+10. Notificaciones y Seguimiento (CRM Service)
+Mantiene al cliente informado.
+
+Atributos: id_aviso, id_cliente, mensaje, canal (SMS/WhatsApp), leido (Boolean).
+
+Conexión API: Recibe peticiones de todos: "Tu auto entró a taller", "Tu presupuesto está listo", "Tu auto está reparado".
+
+Diagrama de Comunicación
+¿Cómo defenderías la independencia en este caso?
+Si el profesor te pregunta: "¿Por qué no es un monolito?", tú respondes:
+
+Escalabilidad: "Si tenemos mucha gente agendando citas pero pocos autos en el taller, puedo escalar solo el Servicio de Agenda sin gastar recursos en los otros".
+
+Independencia de datos: "Si la base de datos de Repuestos falla, el mecánico aún puede ver su Orden de Trabajo y seguir arreglando el auto, aunque no pueda pedir piezas nuevas en ese momento".
+
+Tecnología: "Podría tener el Servicio de Diagnóstico en Python para usar algún modelo de IA que detecte fallas, mientras que el de Facturación está en Java para mayor seguridad transaccional".
+
+Tip final: Para tu base de datos, usa el id_vehiculo o la patente como el "hilo conductor" entre casi todos los servicios.

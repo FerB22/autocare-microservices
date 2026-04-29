@@ -1,0 +1,93 @@
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      routes:
+
+        - id: fleet-service
+          uri: lb://fleet-service
+          predicates:
+            - Path=/api/vehiculos/**
+          filters:
+            - StripPrefix=1
+
+        - id: customer-service
+          uri: lb://customer-service
+          predicates:
+            - Path=/api/clientes/**
+          filters:
+            - StripPrefix=1
+
+        - id: booking-service
+          uri: lb://booking-service
+          predicates:
+            - Path=/api/reservas/**
+          filters:
+            - StripPrefix=1
+
+        - id: checkin-service
+          uri: lb://checkin-service
+          predicates:
+            - Path=/api/recepciones/**
+          filters:
+            - StripPrefix=1
+
+        - id: workflow-service
+          uri: lb://workflow-service
+          predicates:
+            - Path=/api/ordenes/**
+          filters:
+            - StripPrefix=1
+
+        - id: estimation-service
+          uri: lb://estimation-service
+          predicates:
+            - Path=/api/cotizaciones/**
+          filters:
+            - StripPrefix=1
+
+        - id: spare-parts-service
+          uri: lb://spare-parts-service
+          predicates:
+            - Path=/api/repuestos/**
+          filters:
+            - StripPrefix=1
+
+        - id: hr-service
+          uri: lb://hr-service
+          predicates:
+            - Path=/api/mecanicos/**
+          filters:
+            - StripPrefix=1
+
+        - id: billing-service
+          uri: lb://billing-service
+          predicates:
+            - Path=/api/facturas/**
+          filters:
+            - StripPrefix=1
+
+        - id: crm-service
+          uri: lb://crm-service
+          predicates:
+            - Path=/api/interacciones/**
+          filters:
+            - StripPrefix=1
+
+        - id: notification-service
+          uri: lb://notification-service
+          predicates:
+            - Path=/api/notificaciones/**
+          filters:
+            - StripPrefix=1
+
+server:
+  port: 8080
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka
+  instance:
+    prefer-ip-address: true
