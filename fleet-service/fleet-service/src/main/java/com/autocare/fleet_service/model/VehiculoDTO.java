@@ -1,4 +1,4 @@
-package com.autocare.booking_service.dto;
+package com.autocare.fleet_service.model;
 
 public class VehiculoDTO {
     private String idVehiculo;
