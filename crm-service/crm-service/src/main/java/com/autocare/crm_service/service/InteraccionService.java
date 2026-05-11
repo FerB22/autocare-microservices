@@ -2,6 +2,9 @@ package com.autocare.crm_service.service;
 
 import com.autocare.crm_service.model.Interaccion;
 import com.autocare.crm_service.repository.InteraccionRepository;
+
+import lombok.extern.slf4j.Slf4j;
+
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.http.ResponseEntity;
@@ -10,6 +13,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+@Slf4j
 @Service
 public class InteraccionService {
 

@@ -2,6 +2,9 @@ package com.autocare.workflow_service.service;
 
 import com.autocare.workflow_service.model.OrdenTrabajo;
 import com.autocare.workflow_service.repository.OrdenTrabajoRepository;
+
+import lombok.extern.slf4j.Slf4j;
+
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.core.ParameterizedTypeReference;
@@ -10,6 +13,7 @@ import org.springframework.http.ResponseEntity;
 import java.util.List;
 import java.util.Optional;
 
+@Slf4j
 @Service
 public class OrdenTrabajoService {
 

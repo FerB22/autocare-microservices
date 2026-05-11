@@ -3,12 +3,16 @@ package com.autocare.fleet_service.service;
 import com.autocare.fleet_service.dto.ClienteDTO;
 import com.autocare.fleet_service.model.Vehiculo;
 import com.autocare.fleet_service.repository.VehiculoRepository;
+
+import lombok.extern.slf4j.Slf4j;
+
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 
 import java.util.List;
 import java.util.Optional;
 
+@Slf4j
 @Service
 public class VehiculoService {
 

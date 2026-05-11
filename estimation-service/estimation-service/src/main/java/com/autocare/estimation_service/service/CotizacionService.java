@@ -2,6 +2,9 @@ package com.autocare.estimation_service.service;
 
 import com.autocare.estimation_service.model.Cotizacion;
 import com.autocare.estimation_service.repository.CotizacionRepository;
+
+import lombok.extern.slf4j.Slf4j;
+
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.http.ResponseEntity;
@@ -9,6 +12,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+@Slf4j
 @Service
 public class CotizacionService {
 

@@ -5,6 +5,7 @@ import com.autocare.booking_service.dto.VehiculoDTO;
 import com.autocare.booking_service.dto.ClienteDTO;
 import com.autocare.booking_service.model.Cita;
 import com.autocare.booking_service.repository.CitaRepository;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -14,7 +15,6 @@ import org.springframework.web.reactive.function.client.WebClientResponseExcepti
 
 import java.util.List;
 import java.util.Optional;
-
 
 @Service
 public class CitaService {

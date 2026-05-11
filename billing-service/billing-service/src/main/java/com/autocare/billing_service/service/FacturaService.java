@@ -1,8 +1,10 @@
 package com.autocare.billing_service.service;
 
 import com.autocare.billing_service.dto.CotizacionDTO;
+import com.autocare.billing_service.exception.RecursoNoEncontradoException;
 import com.autocare.billing_service.model.Factura;
 import com.autocare.billing_service.repository.FacturaRepository;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -11,6 +13,7 @@ import org.springframework.web.reactive.function.client.WebClientResponseExcepti
 
 import java.util.List;
 import java.util.Optional;
+
 
 @Service
 public class FacturaService {
@@ -61,7 +64,7 @@ public class FacturaService {
         // Sumar solo las cotizaciones APROBADAS
         double subtotal = cotizaciones.stream()
             .filter(c -> "APROBADA".equals(c.getEstado()))
-            .mapToDouble(c -> c.getTotalLinea() != null ? c.getTotalLinea() : 0.0)
+            .mapToDouble(c -> { Double total = c.getTotalLinea(); return total != null ? total : 0.0; })
             .sum();
 
         if (subtotal == 0) {
@@ -107,7 +110,7 @@ public class FacturaService {
     public void eliminar(String id) {
         log.info("Eliminando factura con ID: {}", id);
         if (!facturaRepository.existsById(id)) {
-            throw new RuntimeException("Factura no encontrada con ID: " + id);
+            throw new RecursoNoEncontradoException("Factura no encontrada con ID: " + id);
         }
         facturaRepository.deleteById(id);
     }

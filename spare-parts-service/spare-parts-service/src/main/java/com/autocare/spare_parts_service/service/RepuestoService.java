@@ -2,10 +2,14 @@ package com.autocare.spare_parts_service.service;
 
 import com.autocare.spare_parts_service.model.Repuesto;
 import com.autocare.spare_parts_service.repository.RepuestoRepository;
+
+import lombok.extern.slf4j.Slf4j;
+
 import org.springframework.stereotype.Service;
 import java.util.List;
 import java.util.Optional;
 
+@Slf4j
 @Service
 public class RepuestoService {
 
