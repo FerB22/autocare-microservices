@@ -10,6 +10,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
+@Tag(name = "Cotizaciones", description = "Gestión de cotizaciones del taller")
 @RestController
 @RequestMapping("/cotizaciones")
 public class CotizacionController {
@@ -20,11 +24,13 @@ public class CotizacionController {
         this.cotizacionService = cotizacionService;
     }
 
+    @Operation(summary = "Listar todas las cotizaciones")
     @GetMapping
     public ResponseEntity<List<Cotizacion>> listar() {
         return ResponseEntity.ok(cotizacionService.listarTodas());
     }
 
+    @Operation(summary = "Obtener por ID")
     @GetMapping("/{id}")
     public ResponseEntity<Object> buscarPorId(@PathVariable String id) {
         Optional<Cotizacion> resultado = cotizacionService.buscarPorId(id);
@@ -47,6 +53,7 @@ public class CotizacionController {
         return ResponseEntity.ok(cotizacionService.buscarPorEstado(estado));
     }
 
+    @Operation(summary = "Crear nueva cotización")
     @PostMapping
     public ResponseEntity<Object> crear(@Valid @RequestBody Cotizacion cotizacion) {
         try {
@@ -71,6 +78,7 @@ public class CotizacionController {
         }
     }
 
+    @Operation(summary = "Eliminar por ID")
     @DeleteMapping("/{id}")
     public ResponseEntity<Object> eliminar(@PathVariable String id) {
         try {

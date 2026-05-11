@@ -10,6 +10,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
+@Tag(name = "Clientes", description = "Gestión de clientes del taller")
 @RestController
 @RequestMapping("/clientes")
 public class ClienteController {
@@ -20,11 +24,13 @@ public class ClienteController {
         this.clienteService = clienteService;
     }
 
+    @Operation(summary = "Listar todos los clientes")
     @GetMapping
     public ResponseEntity<List<Cliente>> listar() {
         return ResponseEntity.ok(clienteService.listarTodos());
     }
 
+    @Operation(summary = "Obtener cliente por ID")
     @GetMapping("/{id}")
     public ResponseEntity<Object> buscarPorId(@PathVariable String id) {
         Optional<Cliente> resultado = clienteService.buscarPorId(id);
@@ -45,6 +51,7 @@ public class ClienteController {
             .body(Map.of("error", "Cliente no encontrado con email: " + email));
     }
 
+    @Operation(summary = "Crear un nuevo cliente")
     @PostMapping
     public ResponseEntity<Object> crear(@Valid @RequestBody Cliente cliente) {
         try {
@@ -67,6 +74,7 @@ public class ClienteController {
         }
     }
 
+    @Operation(summary = "Eliminar cliente")
     @DeleteMapping("/{id}")
     public ResponseEntity<Object> eliminar(@PathVariable String id) {
         try {

@@ -10,6 +10,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
+@Tag(name = "Mecánicos", description = "Gestión de mecánicos del taller")
 @RestController
 @RequestMapping("/mecanicos")
 public class MecanicoController {
@@ -20,11 +24,13 @@ public class MecanicoController {
         this.mecanicoService = mecanicoService;
     }
 
+    @Operation(summary = "Listar todos los mecánicos")
     @GetMapping
     public ResponseEntity<List<Mecanico>> listar() {
         return ResponseEntity.ok(mecanicoService.listarTodos());
     }
 
+    @Operation(summary = "Obtener por ID")
     @GetMapping("/{id}")
     public ResponseEntity<Object> buscarPorId(@PathVariable String id) {
         Optional<Mecanico> resultado = mecanicoService.buscarPorId(id);
@@ -55,6 +61,7 @@ public class MecanicoController {
         return ResponseEntity.ok(mecanicoService.buscarDisponiblesPorEspecialidad(especialidad));
     }
 
+    @Operation(summary = "Crear nuevo mecánico")
     @PostMapping
     public ResponseEntity<Object> crear(@Valid @RequestBody Mecanico mecanico) {
         try {
@@ -90,6 +97,7 @@ public class MecanicoController {
         }
     }
 
+    @Operation(summary = "Eliminar por ID")
     @DeleteMapping("/{id}")
     public ResponseEntity<Object> eliminar(@PathVariable String id) {
         try {

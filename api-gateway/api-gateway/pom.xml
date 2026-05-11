@@ -31,9 +31,10 @@
 		<spring-cloud.version>2025.0.2</spring-cloud.version>
 	</properties>
 	<dependencies>
+		<!-- ✅ AGREGAR esto en su lugar -->
 		<dependency>
 			<groupId>org.springframework.cloud</groupId>
-			<artifactId>spring-cloud-starter-gateway-server-webmvc</artifactId>
+			<artifactId>spring-cloud-starter-gateway-server-webflux</artifactId>
 		</dependency>
 		<dependency>
 			<groupId>org.springframework.cloud</groupId>

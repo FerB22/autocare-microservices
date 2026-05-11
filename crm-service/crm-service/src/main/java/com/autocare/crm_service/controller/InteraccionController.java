@@ -10,6 +10,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
+@Tag(name = "Interacción", description = "Gestión de interacción del taller")
 @RestController
 @RequestMapping("/interacciones")
 public class InteraccionController {
@@ -20,11 +24,13 @@ public class InteraccionController {
         this.interaccionService = interaccionService;
     }
 
+    @Operation(summary = "Listar todas las interacciones")
     @GetMapping
     public ResponseEntity<List<Interaccion>> listar() {
         return ResponseEntity.ok(interaccionService.listarTodas());
     }
 
+    @Operation(summary = "Obtener por ID")
     @GetMapping("/{id}")
     public ResponseEntity<Object> buscarPorId(@PathVariable String id) {
         Optional<Interaccion> resultado = interaccionService.buscarPorId(id);
@@ -55,6 +61,7 @@ public class InteraccionController {
         return ResponseEntity.ok(interaccionService.buscarPorSeguimiento(seguimiento));
     }
 
+    @Operation(summary = "Crear nueva interacción")
     @PostMapping
     public ResponseEntity<Object> registrar(
             @Valid @RequestBody Interaccion interaccion) {
@@ -80,6 +87,7 @@ public class InteraccionController {
         }
     }
 
+    @Operation(summary = "Eliminar por ID")
     @DeleteMapping("/{id}")
     public ResponseEntity<Object> eliminar(@PathVariable String id) {
         try {

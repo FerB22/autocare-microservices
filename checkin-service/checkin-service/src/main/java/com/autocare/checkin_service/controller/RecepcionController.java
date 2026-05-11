@@ -10,6 +10,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
+@Tag(name = "Recepción", description = "Gestión de recepción del taller")
 @RestController
 @RequestMapping("/recepciones")
 public class RecepcionController {
@@ -20,11 +24,13 @@ public class RecepcionController {
         this.recepcionService = recepcionService;
     }
 
+    @Operation(summary = "Listar recepción")
     @GetMapping
     public ResponseEntity<List<Recepcion>> listar() {
         return ResponseEntity.ok(recepcionService.listarTodas());
     }
 
+    @Operation(summary = "Obtener recepción por ID")
     @GetMapping("/{id}")
     public ResponseEntity<Object> buscarPorId(@PathVariable String id) {
         Optional<Recepcion> resultado = recepcionService.buscarPorId(id);
@@ -41,6 +47,7 @@ public class RecepcionController {
         return ResponseEntity.ok(recepcionService.buscarPorVehiculo(idVehiculo));
     }
 
+    @Operation(summary = "Crear recepción")
     @PostMapping
     public ResponseEntity<Object> registrar(@Valid @RequestBody Recepcion recepcion) {
         try {
@@ -52,6 +59,7 @@ public class RecepcionController {
         }
     }
 
+    @Operation(summary = "Eliminar recepción")
     @DeleteMapping("/{id}")
     public ResponseEntity<Object> eliminar(@PathVariable String id) {
         try {

@@ -10,6 +10,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
+@Tag(name = "Facturas", description = "Gestión de facturas del taller")
 @RestController
 @RequestMapping("/facturas")
 public class FacturaController {
@@ -20,11 +24,13 @@ public class FacturaController {
         this.facturaService = facturaService;
     }
 
+    @Operation(summary = "Listar todas las facturas")
     @GetMapping
     public ResponseEntity<List<Factura>> listar() {
         return ResponseEntity.ok(facturaService.listarTodas());
     }
 
+    @Operation(summary = "Obtener factura por ID")
     @GetMapping("/{id}")
     public ResponseEntity<Object> buscarPorId(@PathVariable String id) {
         Optional<Factura> resultado = facturaService.buscarPorId(id);
@@ -47,6 +53,7 @@ public class FacturaController {
         return ResponseEntity.ok(facturaService.buscarPorEstado(estado));
     }
 
+    @Operation(summary = "Crear una nueva factura")
     @PostMapping
     public ResponseEntity<Object> generar(@Valid @RequestBody Factura factura) {
         try {
@@ -71,6 +78,7 @@ public class FacturaController {
         }
     }
 
+    @Operation(summary = "Eliminar factura")
     @DeleteMapping("/{id}")
     public ResponseEntity<Object> eliminar(@PathVariable String id) {
         try {

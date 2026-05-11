@@ -1,0 +1,41 @@
+spring:
+  application:
+    name: fleet-service
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/autocare_fleet
+    username: postgres
+    password: admin
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+  main:
+    web-application-type: servlet  # ✅ Evita conflicto entre Tomcat y WebFlux
+
+  sql:
+    init:
+      mode: always  # ✅ AGREGADO: ejecuta data.sql al iniciar
+
+server:
+  port: 8081
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka
+  instance:
+    prefer-ip-address: true
+
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html

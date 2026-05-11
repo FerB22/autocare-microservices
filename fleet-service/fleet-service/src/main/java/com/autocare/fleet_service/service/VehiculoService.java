@@ -1,8 +1,11 @@
 package com.autocare.fleet_service.service;
 
+import com.autocare.fleet_service.dto.ClienteDTO;
 import com.autocare.fleet_service.model.Vehiculo;
 import com.autocare.fleet_service.repository.VehiculoRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.web.reactive.function.client.WebClient;
+
 import java.util.List;
 import java.util.Optional;
 
@@ -10,11 +13,27 @@ import java.util.Optional;
 public class VehiculoService {
 
     private final VehiculoRepository vehiculoRepository;
+    private final WebClient webClient; // ✅ AGREGADO
 
-    // Inyección de dependencias por constructor (buena práctica)
-    public VehiculoService(VehiculoRepository vehiculoRepository) {
+    // ✅ ACTUALIZADO: ahora recibe también el WebClient.Builder
+    public VehiculoService(VehiculoRepository vehiculoRepository,
+                           WebClient.Builder webClientBuilder) {
         this.vehiculoRepository = vehiculoRepository;
+        this.webClient = webClientBuilder
+                .baseUrl("lb://customer-service")
+                .build();
     }
+
+    // ✅ NUEVO: consulta los datos del dueño del vehículo
+    public ClienteDTO obtenerDuenio(String idDuenio) {
+        return webClient.get()
+                .uri("/clientes/{id}", idDuenio)
+                .retrieve()
+                .bodyToMono(ClienteDTO.class)
+                .block();
+    }
+
+    // --- Lo que ya tenías, sin cambios ---
 
     public List<Vehiculo> listarTodos() {
         return vehiculoRepository.findAll();

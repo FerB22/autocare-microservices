@@ -10,6 +10,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
+@Tag(name = "Notificaciones", description = "Gestión de notificaciones del taller")
 @RestController
 @RequestMapping("/notificaciones")
 public class NotificacionController {
@@ -25,6 +29,7 @@ public class NotificacionController {
         return ResponseEntity.ok(notificacionService.listarTodas());
     }
 
+    @Operation(summary = "Listar todas las notificaciones")
     @GetMapping("/{id}")
     public ResponseEntity<Object> buscarPorId(@PathVariable String id) {
         Optional<Notificacion> resultado = notificacionService.buscarPorId(id);
@@ -35,6 +40,7 @@ public class NotificacionController {
             .body(Map.of("error", "Notificación no encontrada con ID: " + id));
     }
 
+    @Operation(summary = "Obtener por destinatario")
     @GetMapping("/destinatario/{idDestinatario}")
     public ResponseEntity<List<Notificacion>> buscarPorDestinatario(
             @PathVariable String idDestinatario) {
@@ -50,6 +56,7 @@ public class NotificacionController {
             notificacionService.buscarNoLeidasPorDestinatario(idDestinatario));
     }
 
+    @Operation(summary = "Obtener por tipo")
     // GET /notificaciones/tipo/ORDEN_CREADA
     @GetMapping("/tipo/{tipo}")
     public ResponseEntity<Object> buscarPorTipo(
@@ -57,6 +64,7 @@ public class NotificacionController {
         return ResponseEntity.ok(notificacionService.buscarPorTipo(tipo));
     }
 
+    @Operation(summary = "Eviar notificación")
     @PostMapping
     public ResponseEntity<Object> enviar(
             @Valid @RequestBody Notificacion notificacion) {
@@ -80,6 +88,7 @@ public class NotificacionController {
         }
     }
 
+    @Operation(summary = "Eliminar por ID")
     @DeleteMapping("/{id}")
     public ResponseEntity<Object> eliminar(@PathVariable String id) {
         try {

@@ -7,12 +7,13 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.5.13</version> 
+        <version>3.5.13</version>
         <relativePath/>
     </parent>
 
+    <!-- ✅ CORREGIDO: ahora es fleet-service -->
     <groupId>com.autocare</groupId>
-    <artifactId>customer-service</artifactId>
+    <artifactId>fleet-service</artifactId>
     <version>0.0.1-SNAPSHOT</version>
 
     <properties>
@@ -21,10 +22,16 @@
     </properties>
 
     <dependencies>
-        <!-- ✅ CORREGIDO: web → spring-boot-starter-web -->
+        <!-- Web -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
+        <!-- ✅ AGREGADO: WebClient para llamar al customer-service -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-webflux</artifactId>
         </dependency>
 
         <!-- JPA + PostgreSQL -->
@@ -36,6 +43,13 @@
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
             <scope>runtime</scope>
+        </dependency>
+
+        <!-- Swagger / OpenAPI -->
+        <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+            <version>2.3.0</version>
         </dependency>
 
         <!-- Validaciones -->
