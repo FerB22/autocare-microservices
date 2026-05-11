@@ -1,7 +1,7 @@
 # AutoCare — Sistema de Gestión de Taller Mecánico
 
 ## Integrantes
-- Fernando Barrera
+- Fernando Barra
 - Benjamín Montanares
 - Sebastián Saavedra
 
