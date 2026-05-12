@@ -12,4 +12,7 @@ public interface VehiculoRepository extends JpaRepository<Vehiculo, String> {
     Optional<Vehiculo> findByPatente(String patente);
 
     boolean existsByPatente(String patente);
+
+    // VehiculoRepository.java — agregar este método
+    boolean existsByVinChasis(String vinChasis);
 }
