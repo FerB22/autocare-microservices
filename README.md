@@ -1,7 +1,7 @@
 # AutoCare — Sistema de Gestión de Taller Mecánico
 
 ## Integrantes
-- Fernando Barrera
+- Fernando Barra
 - Benjamín Montanares
 - Sebastián Saavedra
 
@@ -43,8 +43,6 @@ desarrollado con Spring Boot 3, Eureka, API Gateway y bases de datos independien
 ## Comunicación entre microservicios
 - `booking-service` → consulta `fleet-service` (verificar vehículo) y `customer-service` (verificar cliente)
 - `billing-service` → consulta `estimation-service` (obtener cotizaciones aprobadas para calcular factura)
-
----
 
 ## Reglas de Negocio — Módulo de Citas (`booking-service`)
 
@@ -96,7 +94,11 @@ Si la creación falla, el cambio de estado se revierte y se registra el error en
 No se permiten citas con fecha y hora en el pasado.
 Esta regla se aplica mediante la anotación `@Future` en el campo `fechaHora` de la entidad `Cita`.
 
+<<<<<<< HEAD
 ---
+=======
+***
+>>>>>>> 4631e4fd7fba52ed2009beaad814c46137aa9fd5
 
 ## Escenarios de prueba — Reglas de Negocio
 
