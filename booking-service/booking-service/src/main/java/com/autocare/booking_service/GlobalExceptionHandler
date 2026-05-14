@@ -1,5 +1,8 @@
 package com.autocare.booking_service;
 
+import com.autocare.booking_service.exception.CitaNoEncontradaException;
+import com.autocare.booking_service.exception.HorarioOcupadoException;
+import com.autocare.booking_service.exception.VehiculoYaAgendadoException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
@@ -10,27 +13,83 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * Maneja excepciones lanzadas por los controllers del booking-service.
+ * - Centraliza la transformación de excepciones en respuestas HTTP consistentes.
+ * - Usa códigos HTTP precisos según el tipo de error (400, 404, 409).
+ * - Evita repetir manejo de errores en cada controlador.
+ * - Respuestas siempre en formato JSON para APIs REST.
+ */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    // Captura errores de @Valid (campos inválidos)
+    /**
+     * Captura errores de validación producidos por @Valid en controladores.
+     * - Ejemplo: campos obligatorios vacíos, formatos inválidos.
+     * - Devuelve 400 con mapa { campo: mensaje } para mostrar todos los errores.
+     */
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, String>> handleValidationErrors(
             MethodArgumentNotValidException ex) {
 
+        // Mapa que contendrá por cada campo inválido el mensaje de error asociado
         Map<String, String> errores = new HashMap<>();
+        // Recorre los FieldError devueltos por la validación y los agrega al mapa
         for (FieldError error : ex.getBindingResult().getFieldErrors()) {
             errores.put(error.getField(), error.getDefaultMessage());
         }
+        // 400 Bad Request es correcto para validaciones de entrada
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errores);
     }
 
-    // Captura errores generales de lógica (RuntimeException)
-    @ExceptionHandler(RuntimeException.class)
-    public ResponseEntity<Map<String, String>> handleRuntimeException(
-            RuntimeException ex) {
+    /**
+     * Captura excepciones específicas de negocio del servicio de citas.
+     * - CitaNoEncontradaException → 404 Not Found
+     * - HorarioOcupadoException → 409 Conflict  
+     * - VehiculoYaAgendadoException → 409 Conflict
+     */
+    @ExceptionHandler({
+        CitaNoEncontradaException.class,
+        HorarioOcupadoException.class,
+        VehiculoYaAgendadoException.class
+    })
+    public ResponseEntity<Map<String, String>> handleBusinessExceptions(RuntimeException ex) {
+        // Usa el mensaje específico de cada excepción de negocio
+        Map<String, String> errorResponse = Map.of("error", ex.getMessage());
+        // Cada excepción decide su propio código HTTP en el constructor o aquí
+        if (ex instanceof CitaNoEncontradaException) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorResponse);
+        } else { // HorarioOcupadoException, VehiculoYaAgendadoException
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(errorResponse);
+        }
+    }
 
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(Map.of("error", ex.getMessage()));
+    /**
+     * Captura RuntimeException generales no manejadas específicamente.
+     * - Errores inesperados del servicio (BD caída, llamadas externas fallidas).
+     * - Devuelve 500 Internal Server Error para no exponer detalles técnicos.
+     */
+    @ExceptionHandler(RuntimeException.class)
+    public ResponseEntity<Map<String, String>> handleRuntimeException(RuntimeException ex) {
+        // En producción, loggear el stack trace completo pero no exponerlo al cliente
+        log.error("Error inesperado en booking-service: ", ex);
+        
+        // Respuesta genérica para el cliente; no exponer mensaje técnico
+        Map<String, String> errorResponse = Map.of("error", "Error interno del servicio. Intenta más tarde.");
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+    }
+
+    /**
+     * Captura errores de otros servicios (fleet-service, customer-service).
+     * - Cuando WebClient falla al obtener vehículo/cliente.
+     * - Devuelve 404 porque el recurso no existe en el sistema completo.
+     */
+    @ExceptionHandler(WebClientResponseException.class)
+    public ResponseEntity<Map<String, String>> handleExternalServiceErrors(
+            WebClientResponseException ex) {
+        Map<String, String> errorResponse = Map.of(
+            "error", "Recurso no disponible en el sistema (verifique vehículo/cliente)"
+        );
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorResponse);
     }
 }

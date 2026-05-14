@@ -17,10 +17,16 @@ import java.util.Optional;
 @Service
 public class FacturaService {
 
+    // Logger para trazabilidad y debugging
     private static final Logger log = LoggerFactory.getLogger(FacturaService.class);
+
+    // IVA usado en los cálculos
     private static final double IVA = 0.19;
 
+    // Repositorio JPA para persistencia
     private final FacturaRepository facturaRepository;
+
+    // WebClient.Builder para llamadas a otros microservicios
     private final WebClient.Builder webClientBuilder;
 
     public FacturaService(FacturaRepository facturaRepository,
@@ -35,11 +41,13 @@ public class FacturaService {
 
     public List<Factura> listarTodas() {
         log.info("Listando todas las facturas");
+        // Devuelve todas las facturas; en producción considerar paginación
         return facturaRepository.findAll();
     }
 
     public Optional<Factura> buscarPorId(String id) {
         log.info("Buscando factura con ID: {}", id);
+        // Optional permite al controlador decidir entre 200 y 404
         return facturaRepository.findById(id);
     }
 
@@ -60,9 +68,8 @@ public class FacturaService {
     public Factura generar(Factura factura) {
         log.info("Generando factura para orden: {}", factura.getIdOrden());
 
-        // ── REGLA 1: No puede existir ya una factura para la misma orden ─────
-        // Cada orden de trabajo solo puede tener UNA factura. Si ya existe, es
-        // un error: no puedes cobrar dos veces el mismo trabajo.
+        // REGLA 1: No puede existir ya una factura para la misma orden
+        // Evita facturar dos veces la misma orden. Se usa findByIdOrden() y isPresent().
         boolean yaFacturada = facturaRepository
                 .findByIdOrden(factura.getIdOrden())
                 .isPresent();
@@ -78,6 +85,7 @@ public class FacturaService {
         // Consultar cotizaciones aprobadas desde estimation-service
         List<CotizacionDTO> cotizaciones = obtenerCotizaciones(factura.getIdOrden());
 
+        // Si no hay cotizaciones, no se puede generar factura
         if (cotizaciones == null || cotizaciones.isEmpty()) {
             log.error("No hay cotizaciones para la orden: {}", factura.getIdOrden());
             throw new RuntimeException(
@@ -85,8 +93,8 @@ public class FacturaService {
             );
         }
 
-        // ── REGLA 2: Solo se suman cotizaciones APROBADAS ────────────────────
-        // Si el cliente no aprobó el presupuesto, no se le cobra ese ítem.
+        // REGLA 2: Solo se suman cotizaciones APROBADAS
+        // Normaliza totalLinea nulo a 0.0 para evitar NPE en el stream
         double subtotal = cotizaciones.stream()
                 .filter(c -> "APROBADA".equals(c.getEstado()))
                 .mapToDouble(c -> {
@@ -95,8 +103,8 @@ public class FacturaService {
                 })
                 .sum();
 
-        // ── REGLA 3: No generar facturas con monto $0 ─────────────────────────
-        // Una factura de cero no tiene sentido comercial ni legal.
+        // REGLA 3: No generar facturas con monto $0
+        // Evita facturas sin valor económico
         if (subtotal == 0) {
             log.error("No hay cotizaciones APROBADAS para la orden: {}", factura.getIdOrden());
             throw new RuntimeException(
@@ -105,9 +113,11 @@ public class FacturaService {
             );
         }
 
+        // Cálculo de impuesto y total con redondeo a 2 decimales
         double impuesto = Math.round(subtotal * IVA * 100.0) / 100.0;
         double total    = Math.round((subtotal + impuesto) * 100.0) / 100.0;
 
+        // Asignar valores calculados a la entidad antes de persistir
         factura.setSubtotal(subtotal);
         factura.setImpuesto(impuesto);
         factura.setTotal(total);
@@ -124,14 +134,13 @@ public class FacturaService {
     public Factura pagarFactura(String id) {
         log.info("Procesando pago de factura con ID: {}", id);
 
+        // Buscar factura o lanzar excepción específica si no existe
         Factura factura = facturaRepository.findById(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException(
                     "Factura no encontrada con ID: " + id
                 ));
 
-        // ── REGLA 4: No se puede pagar una factura ya pagada ─────────────────
-        // Evita cobros duplicados, que serían un error grave en cualquier sistema
-        // de facturación real.
+        // REGLA 4: No se puede pagar una factura ya pagada
         if (factura.getEstado() == Factura.EstadoFactura.PAGADA) {
             log.warn("Intento de pagar una factura ya pagada: {}", id);
             throw new RuntimeException(
@@ -139,9 +148,7 @@ public class FacturaService {
             );
         }
 
-        // ── REGLA 5: No se puede pagar una factura anulada ───────────────────
-        // Una factura anulada está fuera del sistema. Si quieren cobrar, deben
-        // generar una nueva factura para esa orden.
+        // REGLA 5: No se puede pagar una factura anulada
         if (factura.getEstado() == Factura.EstadoFactura.ANULADA) {
             log.warn("Intento de pagar una factura anulada: {}", id);
             throw new RuntimeException(
@@ -150,6 +157,7 @@ public class FacturaService {
             );
         }
 
+        // Marcar como pagada y persistir
         factura.setEstado(Factura.EstadoFactura.PAGADA);
         log.info("Factura {} marcada como PAGADA exitosamente", id);
         return facturaRepository.save(factura);
@@ -167,9 +175,7 @@ public class FacturaService {
                     "Factura no encontrada con ID: " + id
                 ));
 
-        // ── REGLA 6: No se puede anular una factura ya pagada ────────────────
-        // Si ya se cobró, no se puede anular unilateralmente. En la vida real
-        // habría que emitir una nota de crédito, pero en este sistema lo bloqueamos.
+        // REGLA 6: No se puede anular una factura ya pagada
         if (factura.getEstado() == Factura.EstadoFactura.PAGADA) {
             log.warn("Intento de anular una factura ya pagada: {}", id);
             throw new RuntimeException(
@@ -177,7 +183,7 @@ public class FacturaService {
             );
         }
 
-        // ── REGLA 7: No tiene sentido anular una factura ya anulada ──────────
+        // REGLA 7: No tiene sentido anular una factura ya anulada
         if (factura.getEstado() == Factura.EstadoFactura.ANULADA) {
             log.warn("La factura {} ya estaba anulada", id);
             throw new RuntimeException(
@@ -202,8 +208,7 @@ public class FacturaService {
                     "Factura no encontrada con ID: " + id
                 ));
 
-        // ── REGLA 8: Una factura PAGADA o ANULADA es estado final ────────────
-        // Ningún estado puede sobreescribir estos dos. Son el cierre de la factura.
+        // REGLA 8: Una factura PAGADA o ANULADA es estado final
         if (factura.getEstado() == Factura.EstadoFactura.PAGADA ||
             factura.getEstado() == Factura.EstadoFactura.ANULADA) {
             log.warn("Intento de cambiar estado de factura en estado final: {}", factura.getEstado());
@@ -230,9 +235,7 @@ public class FacturaService {
                     "Factura no encontrada con ID: " + id
                 ));
 
-        // ── REGLA 9: No se puede eliminar una factura pagada ─────────────────
-        // Las facturas pagadas son documentos contables. Eliminarlas sería
-        // una pérdida de información financiera importante.
+        // REGLA 9: No se puede eliminar una factura pagada
         if (factura.getEstado() == Factura.EstadoFactura.PAGADA) {
             log.warn("Intento de eliminar factura pagada: {}", id);
             throw new RuntimeException(
@@ -251,6 +254,7 @@ public class FacturaService {
 
     private List<CotizacionDTO> obtenerCotizaciones(String idOrden) {
         try {
+            // Llamada síncrona a estimation-service; bloquea hasta recibir la lista
             return webClientBuilder.build()
                     .get()
                     .uri("http://estimation-service/cotizaciones/orden/" + idOrden)
@@ -259,6 +263,7 @@ public class FacturaService {
                     .collectList()
                     .block();
         } catch (WebClientResponseException e) {
+            // Log con el mensaje del error remoto y re-lanzar excepción de negocio
             log.error("Error al consultar cotizaciones para orden {}: {}", idOrden, e.getMessage());
             throw new RuntimeException("Error al consultar cotizaciones: " + e.getMessage());
         }

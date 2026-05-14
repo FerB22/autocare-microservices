@@ -13,17 +13,38 @@ import java.time.Year;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * Capa de Servicio para la gestión de vehículos.
+ * Encapsula la lógica de negocio, validaciones complejas y la comunicación 
+ * con el microservicio de clientes (customer-service).
+ */
 @Slf4j
 @Service
 public class VehiculoService {
 
+    // ── CONSTANTES DE VALIDACIÓN ──────────────────────────────────────────────
     private static final int ANIO_MINIMO = 1950;
 
+    // Expresión Regular (Regex) para validar patentes chilenas.
+    // ^[A-Z]{2}[0-9]{4}$ -> Formato antiguo: 2 letras mayúsculas seguidas de 4 números (ej. AB1234).
+    // | -> Operador lógico OR.
+    // ^[A-Z]{4}[0-9]{2}$ -> Formato nuevo (Mercosur): 4 letras mayúsculas seguidas de 2 números (ej. ABCD12).
     private static final String PATRON_PATENTE_CHILENA = "^[A-Z]{2}[0-9]{4}$|^[A-Z]{4}[0-9]{2}$";
 
     private final VehiculoRepository vehiculoRepository;
+    
+    // WebClient es el cliente HTTP recomendado por Spring (reemplazo moderno de RestTemplate).
+    // Está diseñado originalmente para programación reactiva (no bloqueante) con Spring WebFlux,
+    // pero puede usarse en entornos síncronos tradicionales como este.
     private final WebClient webClient;
 
+    /**
+     * Inyección por constructor.
+     * Se inyecta un WebClient.Builder para configurarlo centralizadamente.
+     * El prefijo "lb://" (Load Balancer) indica que no nos conectamos a una IP fija,
+     * sino que delegamos en un Service Discovery (como Netflix Eureka) la tarea de 
+     * encontrar la instancia activa del "customer-service".
+     */
     public VehiculoService(VehiculoRepository vehiculoRepository,
                            WebClient.Builder webClientBuilder) {
         this.vehiculoRepository = vehiculoRepository;
@@ -48,20 +69,27 @@ public class VehiculoService {
 
     public Optional<Vehiculo> buscarPorPatente(String patente) {
         log.info("Buscando vehículo con patente: {}", patente);
+        // Normalización previa a la búsqueda en base de datos para asegurar el "hit".
         return vehiculoRepository.findByPatente(patente.toUpperCase().trim());
     }
 
+    /**
+     * Comunicación síncrona con otro microservicio usando WebClient.
+     */
     public ClienteDTO obtenerDuenio(String idDuenio) {
         log.info("Consultando dueño con ID: {}", idDuenio);
         return webClient.get()
                 .uri("/clientes/{id}", idDuenio)
-                .retrieve()
-                .bodyToMono(ClienteDTO.class)
-                .block();
+                .retrieve() // Ejecuta la llamada HTTP
+                .bodyToMono(ClienteDTO.class) // Convierte asíncronamente el cuerpo JSON a la clase ClienteDTO (Mono es de Reactor).
+                .block(); // .block() rompe la asincronía y pausa el hilo actual hasta que la respuesta llegue, simulando el comportamiento síncrono clásico.
     }
 
     public List<Vehiculo> buscarPorDuenio(String idDuenio) {
         log.info("Buscando vehículos del dueño: {}", idDuenio);
+        // Nota técnica: Si la tabla "vehiculos" crece mucho, filtrar en memoria usando 
+        // stream().filter() no es óptimo. Lo ideal sería crear un método 
+        // findByIdDuenio(String) en el VehiculoRepository para que la BD haga el trabajo.
         return vehiculoRepository.findAll()
                 .stream()
                 .filter(v -> idDuenio.equals(v.getIdDuenio()))
@@ -76,6 +104,8 @@ public class VehiculoService {
         log.info("Registrando nuevo vehículo con patente: {}", vehiculo.getPatente());
 
         // ── REGLA 1: La patente debe ser normalizada a mayúsculas ────────────
+        // replaceAll("\\s+|-", "") elimina cualquier espacio en blanco o guión
+        // que el usuario haya introducido por accidente (ej. "AB - 1234").
         String patenteNormalizada = vehiculo.getPatente().toUpperCase().trim()
                                             .replaceAll("\\s+|-", "");
         vehiculo.setPatente(patenteNormalizada);
@@ -99,6 +129,8 @@ public class VehiculoService {
         }
 
         // ── REGLA 4: El año no puede ser anterior al mínimo ni futuro ─────────
+        // Uso de Year.now() en lugar de fechas crudas (Date/Calendar) por ser 
+        // moderno (java.time) y seguro para concurrencia (Thread-safe).
         int anioActual = Year.now().getValue();
         if (vehiculo.getAnio() < ANIO_MINIMO || vehiculo.getAnio() > anioActual + 1) {
             log.warn("Año de vehículo fuera de rango: {}", vehiculo.getAnio());
@@ -134,14 +166,18 @@ public class VehiculoService {
                     );
                 }
                 log.info("Dueño verificado: {} {}", duenio.getNombre(), duenio.getApellido());
+            
+            // WebClientResponseException es lanzada por WebClient cuando recibe 
+            // estados HTTP de error (4xx o 5xx). Aquí capturamos específicamente el 404.
             } catch (WebClientResponseException.NotFound e) {
                 log.warn("Cliente no encontrado al registrar vehículo: {}", vehiculo.getIdDuenio());
                 throw new RuntimeException(
                     "El cliente con ID '" + vehiculo.getIdDuenio() + "' no existe en el sistema."
                 );
             } catch (RuntimeException e) {
-                throw e;
+                throw e; // Relanza las excepciones de validación propias generadas en el bloque try
             } catch (Exception e) {
+                // Captura otros problemas como caídas de red, timeout, o un error 500 del otro servicio.
                 log.error("Error al verificar cliente en customer-service: {}", e.getMessage());
                 throw new RuntimeException(
                     "No se pudo verificar el cliente: " + e.getMessage()
@@ -182,6 +218,8 @@ public class VehiculoService {
                 );
             }
 
+            // Solo verificamos existencia en base de datos si la patente que enviaron 
+            // en la petición es efectivamente distinta a la que el vehículo ya tenía.
             if (!nuevaPatente.equals(existente.getPatente())
                     && vehiculoRepository.existsByPatente(nuevaPatente)) {
                 log.warn("Patente duplicada al actualizar vehículo {}: {}", id, nuevaPatente);

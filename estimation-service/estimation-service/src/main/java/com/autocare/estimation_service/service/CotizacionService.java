@@ -12,13 +12,24 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-@Slf4j
-@Service
+/**
+ * Capa de Servicio encargada de orquestar la lógica de negocio de las cotizaciones.
+ * En una arquitectura de microservicios, esta clase no solo procesa reglas locales,
+ * sino que también actúa como cliente HTTP para integrarse con otros dominios.
+ */
+@Slf4j // Anotación de Lombok que compila inyectando un Logger estático para la trazabilidad.
+@Service // Registra esta clase como un Bean de Spring, permitiendo su inyección en el controlador.
 public class CotizacionService {
 
     private final CotizacionRepository cotizacionRepository;
+    
+    // RestTemplate es una clase de Spring utilizada para realizar llamadas HTTP síncronas a otros servicios REST.
     private final RestTemplate restTemplate;
 
+    /**
+     * Inyección de dependencias a través del constructor.
+     * Garantiza que el servicio no pueda ser instanciado sin sus dependencias clave.
+     */
     public CotizacionService(CotizacionRepository cotizacionRepository,
                              RestTemplate restTemplate) {
         this.cotizacionRepository = cotizacionRepository;
@@ -53,7 +64,7 @@ public class CotizacionService {
     //  CREACIÓN CON REGLAS DE NEGOCIO
     // ─────────────────────────────────────────
 
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings("unchecked") // Silencia las advertencias del compilador al hacer casting de tipos genéricos (Map).
     public Cotizacion crear(Cotizacion cotizacion) {
         log.info("Creando cotización para orden {} con repuesto {}",
                 cotizacion.getIdOrden(), cotizacion.getIdRepuesto());
@@ -61,6 +72,7 @@ public class CotizacionService {
         // ── REGLA 1: La cantidad debe ser mayor a cero ────────────────────────
         // El modelo tiene @Min(1) desde el Controller. Lo verificamos aquí
         // también como segunda defensa para llamadas internas.
+        // Patrón "Defensive Programming": no confiar ciegamente en las capas superiores.
         if (cotizacion.getCantidad() == null || cotizacion.getCantidad() < 1) {
             log.warn("Cantidad inválida: {}", cotizacion.getCantidad());
             throw new RuntimeException(
@@ -75,6 +87,7 @@ public class CotizacionService {
         List<Cotizacion> cotizacionesExistentes = cotizacionRepository
                 .findByIdOrden(cotizacion.getIdOrden());
 
+        // Uso de la API Stream de Java 8 para evaluar colecciones de forma declarativa y eficiente.
         boolean repuestoDuplicado = cotizacionesExistentes.stream()
                 .anyMatch(c -> c.getIdRepuesto().equals(cotizacion.getIdRepuesto())
                             && c.getEstado() != Cotizacion.EstadoCotizacion.RECHAZADA);
@@ -92,20 +105,24 @@ public class CotizacionService {
 
         // ── Consulta al spare-parts-service para obtener precio y nombre ──────
         // Si el repuesto no existe o no tiene precio, no podemos cotizar.
+        // Comunicación REST Síncrona. Se delega en la red y en el Service Discovery (si existe).
         String url = "http://spare-parts-service/repuestos/" + cotizacion.getIdRepuesto();
 
         try {
+            // Se efectúa la petición GET. La respuesta JSON se mapea a un Map de Java.
             ResponseEntity<Map<String, Object>> respuesta = restTemplate.getForEntity(
                 url, (Class<Map<String, Object>>) (Class<?>) Map.class
             );
 
             Map<String, Object> repuesto = respuesta.getBody();
             if (repuesto != null) {
+                // Almacenamos copias locales (desnormalización) para evitar alterar 
+                // el historial si los precios del catálogo cambian en el futuro.
                 cotizacion.setNombreRepuesto((String) repuesto.get("nombre"));
 
-                // El precio puede venir como Double o Integer según Jackson
+                // El precio puede venir como Double o Integer según el deserializador de Jackson.
                 Object precio = repuesto.get("precioUnitario");
-                if (precio instanceof Number number) {
+                if (precio instanceof Number number) { // Pattern Matching para instanceof (Java 16+)
                     cotizacion.setPrecioUnitario(number.doubleValue());
                 }
 
@@ -140,7 +157,8 @@ public class CotizacionService {
             }
 
         } catch (RuntimeException e) {
-            // Re-lanzamos las RuntimeException propias (las reglas de arriba)
+            // Re-lanzamos las RuntimeException propias (las reglas de arriba) para que 
+            // el GlobalExceptionHandler las atrape y devuelva un HTTP 400.
             throw e;
         } catch (Exception e) {
             log.error("Error al consultar spare-parts-service: {}", e.getMessage());
@@ -151,6 +169,7 @@ public class CotizacionService {
         }
 
         // ── Calcula el total de la línea automáticamente ──────────────────────
+        // Se calcula en backend para evitar que un cliente manipulado mande un total erróneo.
         double totalLinea = cotizacion.getPrecioUnitario() * cotizacion.getCantidad();
         cotizacion.setTotalLinea(totalLinea);
 
@@ -166,6 +185,10 @@ public class CotizacionService {
     //  CAMBIO DE ESTADO CON REGLAS DE NEGOCIO
     // ─────────────────────────────────────────
 
+    /**
+     * Implementación de una Máquina de Estados Finitos (Finite State Machine).
+     * Controla rígidamente cómo y cuándo una entidad puede mutar de estado.
+     */
     public Cotizacion cambiarEstado(String id, Cotizacion.EstadoCotizacion nuevoEstado) {
         log.info("Cambiando estado de cotización {} a {}", id, nuevoEstado);
 

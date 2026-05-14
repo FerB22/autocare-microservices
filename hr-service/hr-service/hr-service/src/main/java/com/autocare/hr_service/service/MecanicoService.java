@@ -9,19 +9,36 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 import java.util.Optional;
 
-@Slf4j
-@Service
+/**
+ * Capa de Servicio (Service Layer) para la gestión de Recursos Humanos.
+ * Actúa como el núcleo de la lógica de negocio, validando las reglas de la empresa
+ * antes de permitir que los datos lleguen a la base de datos a través del Repositorio.
+ */
+@Slf4j // Anotación de Lombok que inyecta automáticamente un Logger estático para trazar eventos y errores.
+@Service // Registra esta clase como un "Bean" gestionado por el contenedor de Spring.
 public class MecanicoService {
 
     // Especialidades válidas en el taller AutoCare.
     // Centralizar esta lista aquí evita que lleguen valores arbitrarios
     // como "mecánico general" o "todo" que romperían los filtros por especialidad.
+    /**
+     * Fuente única de verdad (Single Source of Truth) para las especialidades.
+     * Al ser 'static final' y usar List.of() (que crea una lista inmutable en Java 9+),
+     * garantizamos que esta configuración es constante, segura para hilos (thread-safe) 
+     * y no consume memoria extra por cada instancia del servicio.
+     */
     private static final List<String> ESPECIALIDADES_VALIDAS = List.of(
         "MOTOR", "FRENOS", "ELECTRICO", "SUSPENSION", "TRANSMISION", "CARROCERIA", "GENERAL"
     );
 
+    // Dependencia inyectada como 'final' para garantizar su inmutabilidad.
     private final MecanicoRepository mecanicoRepository;
 
+    /**
+     * Inyección de dependencias por constructor.
+     * Facilita enormemente las pruebas unitarias, ya que permite instanciar el servicio
+     * pasando un "Mock" (objeto simulado) del repositorio sin depender de Spring.
+     */
     public MecanicoService(MecanicoRepository mecanicoRepository) {
         this.mecanicoRepository = mecanicoRepository;
     }
@@ -51,6 +68,7 @@ public class MecanicoService {
         // ── REGLA 1: La especialidad de búsqueda debe ser válida ──────────────
         // Evita consultas con valores arbitrarios que siempre retornarían vacío
         // y causarían confusión al usuario ("¿por qué no hay mecánicos?").
+        // Sanitización de entrada: normalizamos a mayúsculas y quitamos espacios extra.
         String especialidadNormalizada = especialidad.toUpperCase().trim();
         if (!ESPECIALIDADES_VALIDAS.contains(especialidadNormalizada)) {
             log.warn("Especialidad de búsqueda inválida: {}", especialidad);
@@ -89,6 +107,7 @@ public class MecanicoService {
         // @NotBlank en el modelo valida esto desde el Controller con @Valid.
         // Lo verificamos también aquí porque el Service puede ser llamado
         // internamente sin pasar por el Controller (ej: desde tests o seeds).
+        // Patrón "Programación Defensiva": El servicio no asume que los datos vienen limpios.
         if (mecanico.getNombre() == null || mecanico.getNombre().isBlank()) {
             log.warn("Intento de guardar mecánico sin nombre");
             throw new RuntimeException("El nombre del mecánico es obligatorio.");
@@ -109,6 +128,9 @@ public class MecanicoService {
         // ── REGLA 4: No puede existir dos mecánicos con el mismo nombre ───────
         // En un taller pequeño, el nombre es el identificador humano.
         // Duplicarlo causaría confusión al asignar órdenes en el workflow-service.
+        // Nota técnica: Para bases de datos muy grandes, usar un método en el Repositorio 
+        // como `existsByNombreIgnoreCase` sería más eficiente que traer todos los registros 
+        // a memoria y evaluarlos con Stream, pero para un taller, esta solución es válida.
         boolean nombreDuplicado = mecanicoRepository.findAll()
                 .stream()
                 .anyMatch(m -> m.getNombre().equalsIgnoreCase(mecanico.getNombre().trim()));
@@ -145,6 +167,8 @@ public class MecanicoService {
         // ── REGLA 5: No cambiar a disponible si ya está disponible ────────────
         // Evita llamadas redundantes y registros de log innecesarios que
         // dificultan el seguimiento real de cambios de estado.
+        // Se relaciona con el principio de Idempotencia: múltiples llamadas iguales
+        // no deben alterar el sistema más allá de la primera llamada exitosa.
         if (mecanico.isEstaDisponible() == disponible) {
             String estadoTexto = disponible ? "disponible" : "no disponible";
             log.warn("Mecánico {} ya está {}, no se requiere cambio", id, estadoTexto);
@@ -192,7 +216,7 @@ public class MecanicoService {
             boolean nombreDuplicado = mecanicoRepository.findAll()
                     .stream()
                     .anyMatch(m -> m.getNombre().equalsIgnoreCase(datos.getNombre().trim())
-                               && !m.getIdMecanico().equals(id)); // excluir al propio mecánico
+                               && !m.getIdMecanico().equals(id)); // excluir al propio mecánico de la validación
 
             if (nombreDuplicado) {
                 log.warn("Nombre duplicado al actualizar mecánico: {}", datos.getNombre());
@@ -205,7 +229,7 @@ public class MecanicoService {
 
         existente.setEstaDisponible(datos.isEstaDisponible());
         log.info("Mecánico '{}' actualizado correctamente", existente.getNombre());
-        return mecanicoRepository.save(existente);
+        return mecanicoRepository.save(existente); // JPA ejecuta un UPDATE automático porque el objeto ya tiene ID.
     }
 
     // ─────────────────────────────────────────
@@ -224,6 +248,7 @@ public class MecanicoService {
         // Si el mecánico está marcado como NO disponible, significa que tiene
         // una orden de trabajo asignada en el workflow-service.
         // Eliminarlo dejaría esa orden sin mecánico responsable y sin registro.
+        // Ésta es una regla vital de consistencia eventual entre microservicios.
         if (!mecanico.isEstaDisponible()) {
             log.warn("Intento de eliminar mecánico ocupado: {}", id);
             throw new RuntimeException(

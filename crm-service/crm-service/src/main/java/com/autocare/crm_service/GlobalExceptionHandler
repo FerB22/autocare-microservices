@@ -10,26 +10,62 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * Clase centralizada para el manejo de excepciones a nivel global.
+ * @RestControllerAdvice es una especialización de @ControllerAdvice que además
+ * aplica @ResponseBody. Esto significa que intercepta las excepciones lanzadas por
+ * cualquier @RestController en la aplicación y asegura que las respuestas de error
+ * se serialicen automáticamente en formato JSON.
+ * Esto evita tener bloques try-catch repetitivos en todos los controladores.
+ */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
     // Captura errores de @Valid (campos inválidos)
+    /**
+     * Intercepta las excepciones del tipo MethodArgumentNotValidException.
+     * Esta excepción es lanzada automáticamente por Spring cuando un DTO o entidad
+     * falla la validación de Jakarta Bean Validation (ej. cuando falla un @NotNull, @Size, etc.
+     * que definiste en tu objeto Interaccion y validaste con @Valid en el controlador).
+     *
+     * @param ex La excepción que contiene los detalles de los campos que fallaron.
+     * @return Un mapa con los nombres de los campos y sus respectivos mensajes de error.
+     */
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, String>> handleValidationErrors(
             MethodArgumentNotValidException ex) {
 
+        // Se inicializa un mapa para estructurar la respuesta JSON.
+        // Clave: nombre del campo (ej. "descripcion"). Valor: mensaje de error (ej. "No puede estar vacío").
         Map<String, String> errores = new HashMap<>();
+        
+        // getBindingResult() contiene los resultados de la validación.
+        // Iteramos sobre todos los errores de campo específicos encontrados.
         for (FieldError error : ex.getBindingResult().getFieldErrors()) {
             errores.put(error.getField(), error.getDefaultMessage());
         }
+        
+        // Retorna un estado HTTP 400 (Bad Request) indicando que el cliente envió datos inválidos,
+        // adjuntando el mapa de errores en el cuerpo de la respuesta.
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errores);
     }
 
     // Captura errores generales de lógica (RuntimeException)
+    /**
+     * Intercepta cualquier excepción del tipo RuntimeException lanzada durante la ejecución.
+     * Este manejador es especialmente útil para capturar las excepciones de reglas de negocio
+     * que lanzaste manualmente en tu capa de servicio (por ejemplo, cuando intentan cerrar
+     * un caso sin pasar por EN_PROCESO, o si la descripción es muy corta).
+     *
+     * @param ex La excepción de tiempo de ejecución capturada.
+     * @return Una respuesta estándar JSON con una única propiedad "error".
+     */
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<Map<String, String>> handleRuntimeException(
             RuntimeException ex) {
 
+        // Retorna un HTTP 400 (Bad Request) estructurando la respuesta mediante Map.of()
+        // para generar rápidamente un JSON con el formato: { "error": "Mensaje de la excepción" }
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(Map.of("error", ex.getMessage()));
     }

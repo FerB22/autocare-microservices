@@ -9,12 +9,26 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 import java.util.Optional;
 
-@Slf4j
-@Service
+/**
+ * Capa de Servicio (Service Layer) para la gestión del inventario de repuestos.
+ * Es el corazón de la lógica de negocio de este microservicio. Aquí se centralizan
+ * todas las validaciones complejas y reglas de la empresa antes de permitir
+ * cualquier mutación en la base de datos.
+ */
+@Slf4j // Anotación de Lombok que inyecta un Logger estático para auditoría y trazabilidad.
+@Service // Estereotipo de Spring que registra esta clase como un Bean singleton gestionado por el contenedor de Inversión de Control (IoC).
 public class RepuestoService {
 
+    // Dependencia inyectada como 'final' para asegurar que la clase sea inmutable
+    // una vez instanciada, evitando cambios accidentales en tiempo de ejecución.
     private final RepuestoRepository repuestoRepository;
 
+    /**
+     * Inyección de dependencias mediante constructor.
+     * Esta es la práctica más recomendada (por encima de @Autowired en el atributo)
+     * porque permite instanciar el servicio fácilmente en pruebas unitarias
+     * pasándole un objeto simulado (Mock) del repositorio.
+     */
     public RepuestoService(RepuestoRepository repuestoRepository) {
         this.repuestoRepository = repuestoRepository;
     }
@@ -40,6 +54,8 @@ public class RepuestoService {
 
     public List<Repuesto> listarConStock() {
         log.info("Listando repuestos con stock disponible");
+        // Delega la carga de filtrado a la base de datos usando el Query Method
+        // en lugar de traer todos los registros y filtrarlos en memoria con Java.
         return repuestoRepository.findByStockGreaterThan(0);
     }
 
@@ -53,6 +69,7 @@ public class RepuestoService {
         // ── REGLA 1: No puede existir dos repuestos con el mismo código ───────
         // El codigoParte es el identificador real del mundo físico (ej: "FIL-4521").
         // Duplicarlo causaría confusión en bodega y errores de cotización.
+        // Se usa existsBy... porque es mucho más rápido a nivel de SQL.
         if (repuestoRepository.existsByCodigoParte(repuesto.getCodigoParte())) {
             log.warn("Código de parte duplicado: {}", repuesto.getCodigoParte());
             throw new RuntimeException(
@@ -63,7 +80,7 @@ public class RepuestoService {
 
         // ── REGLA 2: El stock inicial no puede ser negativo ───────────────────
         // Aunque el modelo tiene @Min(0), verificamos aquí también para dar
-        // un mensaje de error más claro antes de llegar a la BD.
+        // un mensaje de error más claro antes de llegar a la BD (Programación defensiva).
         if (repuesto.getStock() < 0) {
             log.warn("Intento de crear repuesto con stock negativo: {}", repuesto.getStock());
             throw new RuntimeException(
@@ -90,6 +107,11 @@ public class RepuestoService {
     //  RESERVA CON REGLAS DE NEGOCIO
     // ─────────────────────────────────────────
 
+    /**
+     * Patrón de operación atómica para negocio.
+     * En lugar de exponer un setter genérico, se provee un método de negocio
+     * semánticamente claro ("reservar") que altera el estado interno de forma segura.
+     */
     public Repuesto reservar(String id, int cantidad) {
         log.info("Reservando {} unidades del repuesto ID: {}", cantidad, id);
 
@@ -123,13 +145,17 @@ public class RepuestoService {
         repuesto.setStock(repuesto.getStock() - cantidad);
         log.info("Reserva exitosa. Stock restante de '{}': {}", 
                 repuesto.getNombre(), repuesto.getStock());
-        return repuestoRepository.save(repuesto);
+        return repuestoRepository.save(repuesto); // Dispara un UPDATE en base de datos.
     }
 
     // ─────────────────────────────────────────
     //  REPOSICIÓN DE STOCK (método nuevo)
     // ─────────────────────────────────────────
 
+    /**
+     * Operación semántica inversa a reservar.
+     * Se usa cuando llega un nuevo cargamento de proveedores o se devuelve una pieza.
+     */
     public Repuesto reponerStock(String id, int cantidad) {
         log.info("Reponiendo {} unidades al repuesto ID: {}", cantidad, id);
 
@@ -210,6 +236,7 @@ public class RepuestoService {
         // ── REGLA 9: No se puede eliminar un repuesto con stock activo ────────
         // Si hay unidades en bodega, eliminar el registro causaría un descuadre
         // de inventario. Primero hay que agotar o reubicar el stock.
+        // Esto protege la consistencia eventual entre el mundo físico y el digital.
         if (repuesto.getStock() > 0) {
             log.warn("Intento de eliminar repuesto con stock activo: {} unidades", 
                     repuesto.getStock());
